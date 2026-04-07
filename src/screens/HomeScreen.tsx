@@ -1,4 +1,4 @@
-import React, {useCallback} from 'react';
+import React, {useCallback, useMemo} from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  ScrollView,
 } from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
@@ -15,7 +16,8 @@ import {useCurrentPayPeriods} from '../hooks/usePayPeriods';
 import {PayPeriodCard} from '../components/PayPeriodCard';
 import {mockCreatePayPeriod, MockTimestamp} from '../services/mockData';
 import {getUpcomingPayDates} from '../services/paySchedule';
-import {colors, spacing, fontSize} from '../theme';
+import {formatPeso} from '../utils/currency';
+import {colors, spacing, fontSize, borderRadius} from '../theme';
 
 type NavProp = StackNavigationProp<RootStackParamList>;
 
@@ -27,7 +29,6 @@ export function HomeScreen() {
   const handleCreatePeriod = useCallback(() => {
     const upcoming = getUpcomingPayDates(new Date(), 1);
     if (upcoming.length === 0) {return;}
-
     const next = upcoming[0];
     mockCreatePayPeriod({
       label: next.label,
@@ -45,6 +46,12 @@ export function HomeScreen() {
     setTimeout(() => setRefreshing(false), 500);
   }, []);
 
+  // Calculate totals across all visible periods
+  const totalSalary = useMemo(
+    () => periods.reduce((sum, p) => sum + p.salary, 0),
+    [periods],
+  );
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -55,43 +62,79 @@ export function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={periods}
-        keyExtractor={item => item.id}
-        renderItem={({item}) => (
-          <PayPeriodCard
-            payPeriod={item}
-            onPress={() =>
-              navigation.navigate('PayPeriod', {
-                periodId: item.id,
-                label: item.label,
-              })
-            }
-          />
-        )}
-        contentContainerStyle={styles.list}
+      <ScrollView
+        contentContainerStyle={styles.scroll}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        ListEmptyComponent={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+          />
+        }>
+        {/* Header */}
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.greeting}>Welcome,</Text>
+            <Text style={styles.name}>Veejay</Text>
+          </View>
+          <View style={styles.avatarContainer}>
+            <Text style={styles.avatar}>💰</Text>
+          </View>
+        </View>
+
+        {/* Balance Card */}
+        <View style={styles.balanceCard}>
+          <Text style={styles.balanceLabel}>Available Balance</Text>
+          <Text style={styles.balanceAmount}>
+            {formatPeso(totalSalary)}
+          </Text>
+          <View style={styles.balanceStats}>
+            <View style={styles.balanceStat}>
+              <View style={[styles.statDot, {backgroundColor: colors.income}]} />
+              <Text style={styles.statLabel}>Earned</Text>
+            </View>
+            <View style={styles.balanceStat}>
+              <View style={[styles.statDot, {backgroundColor: colors.expense}]} />
+              <Text style={styles.statLabel}>Spent</Text>
+            </View>
+            <View style={styles.balanceStat}>
+              <View style={[styles.statDot, {backgroundColor: colors.primary}]} />
+              <Text style={styles.statLabel}>Savings</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Pay Periods */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Pay Periods</Text>
+          <TouchableOpacity onPress={handleCreatePeriod}>
+            <Text style={styles.addButton}>+ Add</Text>
+          </TouchableOpacity>
+        </View>
+
+        {periods.length === 0 ? (
           <View style={styles.empty}>
+            <Text style={styles.emptyIcon}>📄</Text>
             <Text style={styles.emptyText}>No pay periods yet</Text>
             <Text style={styles.emptySubtext}>
-              Tap the + button to create your first pay period
+              Tap "+ Add" to create your first pay period
             </Text>
           </View>
-        }
-        ListHeaderComponent={
-          <Text style={styles.sectionTitle}>Current Pay Periods</Text>
-        }
-      />
-
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={handleCreatePeriod}
-        activeOpacity={0.8}>
-        <Text style={styles.fabText}>+</Text>
-      </TouchableOpacity>
+        ) : (
+          periods.map(item => (
+            <PayPeriodCard
+              key={item.id}
+              payPeriod={item}
+              onPress={() =>
+                navigation.navigate('PayPeriod', {
+                  periodId: item.id,
+                  label: item.label,
+                })
+              }
+            />
+          ))
+        )}
+      </ScrollView>
     </View>
   );
 }
@@ -107,20 +150,108 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.background,
   },
-  list: {
-    paddingVertical: spacing.sm,
+  scroll: {
+    paddingBottom: spacing.xl,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xl + spacing.md,
+    paddingBottom: spacing.md,
+  },
+  greeting: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+  },
+  name: {
+    fontSize: fontSize.xl,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  avatarContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.surfaceLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  avatar: {
+    fontSize: 22,
+  },
+  // Balance Card
+  balanceCard: {
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.xl,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  balanceLabel: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  balanceAmount: {
+    fontSize: fontSize.hero,
+    fontWeight: '700',
+    color: colors.primary,
+    marginBottom: spacing.md,
+  },
+  balanceStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.md,
+  },
+  balanceStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  statDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statLabel: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+  },
+  // Sections
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
   },
   sectionTitle: {
     fontSize: fontSize.lg,
     fontWeight: '700',
     color: colors.text,
-    marginHorizontal: spacing.md,
-    marginTop: spacing.sm,
-    marginBottom: spacing.xs,
   },
+  addButton: {
+    fontSize: fontSize.md,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  // Empty state
   empty: {
     alignItems: 'center',
     paddingVertical: spacing.xl * 2,
+  },
+  emptyIcon: {
+    fontSize: 48,
+    marginBottom: spacing.md,
   },
   emptyText: {
     fontSize: fontSize.lg,
@@ -129,29 +260,7 @@ const styles = StyleSheet.create({
   },
   emptySubtext: {
     fontSize: fontSize.sm,
-    color: colors.textLight,
+    color: colors.textMuted,
     marginTop: spacing.xs,
-  },
-  fab: {
-    position: 'absolute',
-    right: spacing.lg,
-    bottom: spacing.lg,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 3},
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-  },
-  fabText: {
-    color: '#fff',
-    fontSize: 28,
-    fontWeight: '400',
-    marginTop: -2,
   },
 });

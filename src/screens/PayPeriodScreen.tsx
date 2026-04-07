@@ -21,7 +21,7 @@ import {
 import {ExpenseRow} from '../components/ExpenseRow';
 import {RemainingBudget} from '../components/RemainingBudget';
 import {parsePesoInput, formatPeso} from '../utils/currency';
-import {colors, spacing, fontSize} from '../theme';
+import {colors, spacing, fontSize, borderRadius} from '../theme';
 
 type NavProp = StackNavigationProp<RootStackParamList, 'PayPeriod'>;
 type RoutePropType = RouteProp<RootStackParamList, 'PayPeriod'>;
@@ -69,10 +69,7 @@ export function PayPeriodScreen() {
           <ExpenseRow
             expense={item}
             onEdit={() =>
-              navigation.navigate('AddExpense', {
-                periodId,
-                expense: item,
-              })
+              navigation.navigate('AddExpense', {periodId, expense: item})
             }
             onDelete={() => handleDeleteExpense(item.id, item.description)}
             onTogglePaid={() =>
@@ -104,7 +101,10 @@ export function PayPeriodScreen() {
                 </View>
               ) : (
                 <View style={styles.salaryEditRow}>
-                  <Text style={styles.salaryLabel}>Salary</Text>
+                  <View style={styles.salaryLeft}>
+                    <Text style={styles.salaryIcon}>💰</Text>
+                    <Text style={styles.salaryLabel}>Salary</Text>
+                  </View>
                   <Text style={styles.salaryValue}>
                     {formatPeso(payPeriod?.salary ?? 0)}
                   </Text>
@@ -112,7 +112,6 @@ export function PayPeriodScreen() {
               )}
             </TouchableOpacity>
 
-            {/* Remaining Budget Summary */}
             <RemainingBudget
               salary={payPeriod?.salary ?? 0}
               totalExpenses={totalExpenses}
@@ -125,10 +124,9 @@ export function PayPeriodScreen() {
         }
         ListEmptyComponent={
           <View style={styles.empty}>
+            <Text style={styles.emptyIcon}>📝</Text>
             <Text style={styles.emptyText}>No expenses yet</Text>
-            <Text style={styles.emptySubtext}>
-              Tap + to add your first expense
-            </Text>
+            <Text style={styles.emptySubtext}>Tap + to add your first expense</Text>
           </View>
         }
         contentContainerStyle={styles.list}
@@ -145,97 +143,42 @@ export function PayPeriodScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-  },
-  list: {
-    paddingBottom: 80,
-  },
+  container: {flex: 1, backgroundColor: colors.background},
+  center: {flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background},
+  list: {paddingBottom: 80},
   salarySection: {
     backgroundColor: colors.surface,
     padding: spacing.md,
     marginHorizontal: spacing.md,
     marginTop: spacing.md,
-    borderRadius: 12,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  salaryEditRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  salaryLabel: {
-    fontSize: fontSize.md,
-    color: colors.textSecondary,
-    fontWeight: '600',
-  },
-  salaryValue: {
-    fontSize: fontSize.xl,
-    fontWeight: '700',
-    color: colors.income,
-  },
+  salaryEditRow: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'},
+  salaryLeft: {flexDirection: 'row', alignItems: 'center', gap: spacing.sm},
+  salaryIcon: {fontSize: 20},
+  salaryLabel: {fontSize: fontSize.md, color: colors.textSecondary, fontWeight: '600'},
+  salaryValue: {fontSize: fontSize.xl, fontWeight: '700', color: colors.income},
   salaryInput: {
-    fontSize: fontSize.xl,
-    fontWeight: '700',
-    color: colors.income,
-    borderBottomWidth: 2,
-    borderBottomColor: colors.primary,
-    padding: 0,
-    minWidth: 120,
-    textAlign: 'right',
+    fontSize: fontSize.xl, fontWeight: '700', color: colors.income,
+    borderBottomWidth: 2, borderBottomColor: colors.primary,
+    padding: 0, minWidth: 120, textAlign: 'right',
   },
   expensesHeader: {
-    fontSize: fontSize.md,
-    fontWeight: '700',
-    color: colors.text,
-    marginHorizontal: spacing.md,
-    marginTop: spacing.md,
-    marginBottom: spacing.xs,
+    fontSize: fontSize.md, fontWeight: '700', color: colors.text,
+    marginHorizontal: spacing.md, marginTop: spacing.md, marginBottom: spacing.xs,
   },
-  empty: {
-    alignItems: 'center',
-    paddingVertical: spacing.xl,
-  },
-  emptyText: {
-    fontSize: fontSize.md,
-    color: colors.textSecondary,
-  },
-  emptySubtext: {
-    fontSize: fontSize.sm,
-    color: colors.textLight,
-    marginTop: spacing.xs,
-  },
+  empty: {alignItems: 'center', paddingVertical: spacing.xl},
+  emptyIcon: {fontSize: 40, marginBottom: spacing.sm},
+  emptyText: {fontSize: fontSize.md, color: colors.textSecondary},
+  emptySubtext: {fontSize: fontSize.sm, color: colors.textMuted, marginTop: spacing.xs},
   fab: {
-    position: 'absolute',
-    right: spacing.lg,
-    bottom: spacing.lg,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    position: 'absolute', right: spacing.lg, bottom: spacing.lg,
+    width: 56, height: 56, borderRadius: 28,
     backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'center', alignItems: 'center',
     elevation: 6,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 3},
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
   },
-  fabText: {
-    color: '#fff',
-    fontSize: 28,
-    fontWeight: '400',
-    marginTop: -2,
-  },
+  fabText: {color: colors.background, fontSize: 28, fontWeight: '600', marginTop: -2},
 });

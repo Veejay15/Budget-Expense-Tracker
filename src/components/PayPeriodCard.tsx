@@ -35,6 +35,7 @@ export function PayPeriodCard({payPeriod, onPress}: Props) {
 
   const typeLabel = payPeriod.type === 'client1' ? 'Client 1' : payPeriod.type === 'client2' ? 'Client 2' : 'Special';
   const typeBadgeColor = payPeriod.type === 'client1' ? colors.primary : payPeriod.type === 'client2' ? '#8B5CF6' : colors.warning;
+  const typeIcon = payPeriod.type === 'client1' ? '💼' : payPeriod.type === 'client2' ? '🏢' : '⭐';
 
   return (
     <TouchableOpacity
@@ -42,18 +43,22 @@ export function PayPeriodCard({payPeriod, onPress}: Props) {
       onPress={onPress}
       activeOpacity={0.7}>
       <View style={styles.header}>
-        <Text style={styles.label}>{payPeriod.label}</Text>
+        <View style={styles.headerLeft}>
+          <Text style={styles.typeIcon}>{typeIcon}</Text>
+          <View>
+            <Text style={styles.label}>{payPeriod.label}</Text>
+            <Text style={styles.dateRange}>
+              {formatDateRange(
+                timestampToDate(payPeriod.startDate),
+                timestampToDate(payPeriod.endDate),
+              )}
+            </Text>
+          </View>
+        </View>
         <View style={[styles.badge, {backgroundColor: typeBadgeColor}]}>
           <Text style={styles.badgeText}>{typeLabel}</Text>
         </View>
       </View>
-
-      <Text style={styles.dateRange}>
-        {formatDateRange(
-          timestampToDate(payPeriod.startDate),
-          timestampToDate(payPeriod.endDate),
-        )}
-      </Text>
 
       <View style={styles.statsRow}>
         <View style={styles.stat}>
@@ -62,23 +67,28 @@ export function PayPeriodCard({payPeriod, onPress}: Props) {
             {formatPeso(payPeriod.salary)}
           </Text>
         </View>
+        <View style={[styles.statDivider]} />
         <View style={styles.stat}>
-          <Text style={styles.statLabel}>Expenses</Text>
+          <Text style={styles.statLabel}>Spent</Text>
           <Text style={[styles.statValue, {color: colors.expense}]}>
             {formatPeso(totalExpenses)}
           </Text>
         </View>
+        <View style={[styles.statDivider]} />
         <View style={styles.stat}>
-          <Text style={styles.statLabel}>Remaining</Text>
+          <Text style={styles.statLabel}>Left</Text>
           <Text style={[styles.statValue, {color: remainingColor}]}>
             {formatPeso(remaining)}
           </Text>
         </View>
       </View>
 
-      <Text style={styles.expenseCount}>
-        {expenses.length} expense{expenses.length !== 1 ? 's' : ''}
-      </Text>
+      <View style={styles.footer}>
+        <Text style={styles.expenseCount}>
+          {expenses.length} expense{expenses.length !== 1 ? 's' : ''}
+        </Text>
+        <Text style={styles.arrow}>→</Text>
+      </View>
     </TouchableOpacity>
   );
 }
@@ -86,62 +96,86 @@ export function PayPeriodCard({payPeriod, onPress}: Props) {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
+    borderRadius: borderRadius.lg,
     padding: spacing.md,
-    marginHorizontal: spacing.md,
+    marginHorizontal: spacing.lg,
     marginVertical: spacing.xs,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  typeIcon: {
+    fontSize: 24,
   },
   label: {
-    fontSize: fontSize.lg,
+    fontSize: fontSize.md,
     fontWeight: '700',
     color: colors.text,
   },
+  dateRange: {
+    fontSize: fontSize.xs,
+    color: colors.textMuted,
+    marginTop: 1,
+  },
   badge: {
     paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: 12,
+    paddingVertical: 3,
+    borderRadius: borderRadius.full,
   },
   badgeText: {
     color: '#fff',
     fontSize: fontSize.xs,
-    fontWeight: '600',
-  },
-  dateRange: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
-    marginBottom: spacing.md,
+    fontWeight: '700',
   },
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceLight,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
   },
   stat: {
+    flex: 1,
     alignItems: 'center',
+  },
+  statDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: colors.border,
   },
   statLabel: {
     fontSize: fontSize.xs,
-    color: colors.textSecondary,
+    color: colors.textMuted,
     marginBottom: 2,
   },
   statValue: {
     fontSize: fontSize.md,
     fontWeight: '700',
   },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: spacing.sm,
+  },
   expenseCount: {
     fontSize: fontSize.xs,
-    color: colors.textLight,
-    marginTop: spacing.sm,
-    textAlign: 'right',
+    color: colors.textMuted,
+  },
+  arrow: {
+    fontSize: fontSize.md,
+    color: colors.primary,
+    fontWeight: '700',
   },
 });

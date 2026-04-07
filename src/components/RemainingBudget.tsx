@@ -1,6 +1,6 @@
 import React from 'react';
 import {View, Text, StyleSheet} from 'react-native';
-import {colors, spacing, fontSize} from '../theme';
+import {colors, spacing, fontSize, borderRadius} from '../theme';
 import {formatPeso} from '../utils/currency';
 
 interface Props {
@@ -22,13 +22,19 @@ export function RemainingBudget({salary, totalExpenses}: Props) {
   return (
     <View style={styles.container}>
       <View style={styles.row}>
-        <Text style={styles.label}>Salary</Text>
+        <View style={styles.rowLeft}>
+          <Text style={styles.icon}>💵</Text>
+          <Text style={styles.label}>Salary</Text>
+        </View>
         <Text style={[styles.amount, {color: colors.income}]}>
           {formatPeso(salary)}
         </Text>
       </View>
       <View style={styles.row}>
-        <Text style={styles.label}>Total Expenses</Text>
+        <View style={styles.rowLeft}>
+          <Text style={styles.icon}>💸</Text>
+          <Text style={styles.label}>Expenses</Text>
+        </View>
         <Text style={[styles.amount, {color: colors.expense}]}>
           {formatPeso(totalExpenses)}
         </Text>
@@ -61,21 +67,26 @@ export function RemainingBudget({salary, totalExpenses}: Props) {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderRadius: borderRadius.lg,
     padding: spacing.md,
     marginHorizontal: spacing.md,
     marginVertical: spacing.sm,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  rowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  icon: {
+    fontSize: 16,
   },
   label: {
     fontSize: fontSize.md,
@@ -101,7 +112,7 @@ const styles = StyleSheet.create({
   },
   progressContainer: {
     height: 6,
-    backgroundColor: colors.border,
+    backgroundColor: colors.surfaceLight,
     borderRadius: 3,
     marginTop: spacing.sm,
     overflow: 'hidden',
@@ -112,7 +123,7 @@ const styles = StyleSheet.create({
   },
   percentageText: {
     fontSize: fontSize.xs,
-    color: colors.textSecondary,
+    color: colors.textMuted,
     marginTop: spacing.xs,
     textAlign: 'right',
   },

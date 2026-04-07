@@ -22,7 +22,6 @@ export function LoginScreen() {
       Alert.alert('Error', 'Please enter email and password');
       return;
     }
-
     setLoading(true);
     try {
       mockSignIn(email.trim(), password);
@@ -38,14 +37,15 @@ export function LoginScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={styles.content}>
+        <Text style={styles.logo}>💰</Text>
         <Text style={styles.title}>Budget Tracker</Text>
-        <Text style={styles.subtitle}>Track expenses together</Text>
+        <Text style={styles.subtitle}>Veejay & Claire</Text>
 
         <View style={styles.form}>
           <TextInput
             style={styles.input}
             placeholder="Email"
-            placeholderTextColor={colors.textLight}
+            placeholderTextColor={colors.textMuted}
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -55,7 +55,7 @@ export function LoginScreen() {
           <TextInput
             style={styles.input}
             placeholder="Password"
-            placeholderTextColor={colors.textLight}
+            placeholderTextColor={colors.textMuted}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -77,42 +77,50 @@ export function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.background,
   },
   content: {
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: spacing.xl,
   },
+  logo: {
+    fontSize: 64,
+    textAlign: 'center',
+    marginBottom: spacing.md,
+  },
   title: {
     fontSize: fontSize.xxl,
     fontWeight: '700',
-    color: '#fff',
+    color: colors.primary,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: fontSize.md,
-    color: 'rgba(255,255,255,0.8)',
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: spacing.xl,
   },
   form: {
     backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
+    borderRadius: borderRadius.xl,
     padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   input: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: borderRadius.sm,
+    borderRadius: borderRadius.md,
     padding: spacing.md,
     fontSize: fontSize.md,
     color: colors.text,
+    backgroundColor: colors.surfaceLight,
     marginBottom: spacing.md,
   },
   button: {
     backgroundColor: colors.primary,
-    borderRadius: borderRadius.sm,
+    borderRadius: borderRadius.md,
     padding: spacing.md,
     alignItems: 'center',
     marginTop: spacing.sm,
@@ -121,7 +129,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   buttonText: {
-    color: '#fff',
+    color: colors.background,
     fontSize: fontSize.md,
     fontWeight: '700',
   },

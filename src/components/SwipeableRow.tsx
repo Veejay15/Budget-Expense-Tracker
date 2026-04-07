@@ -14,10 +14,7 @@ export function SwipeableRow({children, onEdit, onDelete}: Props) {
 
   const close = () => swipeableRef.current?.close();
 
-  const renderRightActions = (
-    _progress: Animated.AnimatedInterpolation<number>,
-    dragX: Animated.AnimatedInterpolation<number>,
-  ) => {
+  const renderRightActions = () => {
     return (
       <View style={styles.actionsContainer}>
         {onEdit && (
@@ -27,6 +24,7 @@ export function SwipeableRow({children, onEdit, onDelete}: Props) {
               close();
               onEdit();
             }}>
+            <Text style={styles.actionIcon}>✏️</Text>
             <Text style={styles.actionText}>Edit</Text>
           </TouchableOpacity>
         )}
@@ -37,6 +35,7 @@ export function SwipeableRow({children, onEdit, onDelete}: Props) {
               close();
               onDelete();
             }}>
+            <Text style={styles.actionIcon}>🗑️</Text>
             <Text style={styles.actionText}>Delete</Text>
           </TouchableOpacity>
         )}
@@ -70,9 +69,13 @@ const styles = StyleSheet.create({
   deleteAction: {
     backgroundColor: colors.danger,
   },
+  actionIcon: {
+    fontSize: 16,
+    marginBottom: 2,
+  },
   actionText: {
     color: '#fff',
-    fontSize: fontSize.sm,
+    fontSize: fontSize.xs,
     fontWeight: '600',
   },
 });

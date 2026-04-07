@@ -12,7 +12,19 @@ interface Props {
   onTogglePaid: () => void;
 }
 
+const CATEGORY_ICONS: Record<string, string> = {
+  Bills: '🧾',
+  Food: '🍔',
+  Transport: '🚗',
+  Shopping: '🛍️',
+  Health: '💊',
+  Entertainment: '🎬',
+  Other: '📦',
+};
+
 export function ExpenseRow({expense, onEdit, onDelete, onTogglePaid}: Props) {
+  const icon = CATEGORY_ICONS[expense.category ?? ''] ?? '📦';
+
   return (
     <SwipeableRow onEdit={onEdit} onDelete={onDelete}>
       <TouchableOpacity
@@ -20,12 +32,8 @@ export function ExpenseRow({expense, onEdit, onDelete, onTogglePaid}: Props) {
         onPress={onTogglePaid}
         activeOpacity={0.7}>
         <View style={styles.leftSection}>
-          <View
-            style={[
-              styles.checkbox,
-              expense.isPaid && styles.checkboxChecked,
-            ]}>
-            {expense.isPaid && <Text style={styles.checkmark}>✓</Text>}
+          <View style={styles.iconContainer}>
+            <Text style={styles.categoryIcon}>{icon}</Text>
           </View>
           <View style={styles.textSection}>
             <Text
@@ -41,13 +49,18 @@ export function ExpenseRow({expense, onEdit, onDelete, onTogglePaid}: Props) {
             )}
           </View>
         </View>
-        <Text
-          style={[
-            styles.amount,
-            expense.isPaid && styles.paidText,
-          ]}>
-          {formatPeso(expense.amount)}
-        </Text>
+        <View style={styles.rightSection}>
+          <Text
+            style={[
+              styles.amount,
+              expense.isPaid && styles.paidAmount,
+            ]}>
+            {formatPeso(expense.amount)}
+          </Text>
+          {expense.isPaid && (
+            <Text style={styles.paidBadge}>Paid</Text>
+          )}
+        </View>
       </TouchableOpacity>
     </SwipeableRow>
   );
@@ -65,7 +78,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   paidContainer: {
-    backgroundColor: '#F8F9FA',
+    opacity: 0.6,
   },
   leftSection: {
     flexDirection: 'row',
@@ -73,24 +86,17 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: spacing.sm,
   },
-  checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
-    borderColor: colors.border,
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceLight,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.sm,
   },
-  checkboxChecked: {
-    backgroundColor: colors.success,
-    borderColor: colors.success,
-  },
-  checkmark: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '700',
+  categoryIcon: {
+    fontSize: 18,
   },
   textSection: {
     flex: 1,
@@ -98,19 +104,33 @@ const styles = StyleSheet.create({
   description: {
     fontSize: fontSize.md,
     color: colors.text,
+    fontWeight: '500',
   },
   category: {
     fontSize: fontSize.xs,
-    color: colors.textLight,
+    color: colors.textMuted,
     marginTop: 2,
+  },
+  rightSection: {
+    alignItems: 'flex-end',
   },
   amount: {
     fontSize: fontSize.md,
-    fontWeight: '600',
+    fontWeight: '700',
     color: colors.expense,
   },
   paidText: {
-    color: colors.textLight,
     textDecorationLine: 'line-through',
+    color: colors.textMuted,
+  },
+  paidAmount: {
+    color: colors.textMuted,
+    textDecorationLine: 'line-through',
+  },
+  paidBadge: {
+    fontSize: fontSize.xs,
+    color: colors.income,
+    fontWeight: '600',
+    marginTop: 2,
   },
 });

@@ -1,4 +1,5 @@
 import React from 'react';
+import {Text, View, StyleSheet} from 'react-native';
 import {createStackNavigator} from '@react-navigation/stack';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {RootStackParamList, MainTabParamList} from '../types';
@@ -10,36 +11,61 @@ import {HistoryScreen} from '../screens/HistoryScreen';
 import {RecurringBillsScreen} from '../screens/RecurringBillsScreen';
 import {SettingsScreen} from '../screens/SettingsScreen';
 import {useAuth} from '../hooks/useAuth';
-import {colors} from '../theme';
-import {ActivityIndicator, View} from 'react-native';
+import {colors, fontSize} from '../theme';
+import {ActivityIndicator} from 'react-native';
 
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
+
+function TabIcon({icon, focused}: {icon: string; focused: boolean}) {
+  return (
+    <View style={styles.tabIconContainer}>
+      <Text style={[styles.tabIcon, focused && styles.tabIconActive]}>
+        {icon}
+      </Text>
+      {focused && <View style={styles.activeIndicator} />}
+    </View>
+  );
+}
 
 function MainTabs() {
   return (
     <Tab.Navigator
       screenOptions={{
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textLight,
+        tabBarActiveTintColor: colors.tabActive,
+        tabBarInactiveTintColor: colors.tabInactive,
         tabBarStyle: {
-          backgroundColor: colors.surface,
+          backgroundColor: colors.tabBar,
           borderTopColor: colors.border,
+          borderTopWidth: 1,
+          height: 60,
+          paddingBottom: 8,
+          paddingTop: 4,
+        },
+        tabBarLabelStyle: {
+          fontSize: fontSize.xs,
+          fontWeight: '600',
         },
         headerStyle: {
-          backgroundColor: colors.primary,
+          backgroundColor: colors.surface,
+          elevation: 0,
+          shadowOpacity: 0,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.border,
         },
-        headerTintColor: '#fff',
+        headerTintColor: colors.text,
         headerTitleStyle: {
           fontWeight: '700',
+          fontSize: fontSize.lg,
         },
       }}>
       <Tab.Screen
         name="Home"
         component={HomeScreen}
         options={{
-          title: 'Dashboard',
+          headerShown: false,
           tabBarLabel: 'Home',
+          tabBarIcon: ({focused}) => <TabIcon icon="🏠" focused={focused} />,
         }}
       />
       <Tab.Screen
@@ -47,6 +73,7 @@ function MainTabs() {
         component={HistoryScreen}
         options={{
           title: 'History',
+          tabBarIcon: ({focused}) => <TabIcon icon="📊" focused={focused} />,
         }}
       />
       <Tab.Screen
@@ -54,6 +81,7 @@ function MainTabs() {
         component={RecurringBillsScreen}
         options={{
           title: 'Bills',
+          tabBarIcon: ({focused}) => <TabIcon icon="📋" focused={focused} />,
         }}
       />
       <Tab.Screen
@@ -61,6 +89,7 @@ function MainTabs() {
         component={SettingsScreen}
         options={{
           title: 'Settings',
+          tabBarIcon: ({focused}) => <TabIcon icon="⚙️" focused={focused} />,
         }}
       />
     </Tab.Navigator>
@@ -81,9 +110,16 @@ export function RootNavigator() {
   return (
     <Stack.Navigator
       screenOptions={{
-        headerStyle: {backgroundColor: colors.primary},
-        headerTintColor: '#fff',
+        headerStyle: {
+          backgroundColor: colors.surface,
+          elevation: 0,
+          shadowOpacity: 0,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.border,
+        },
+        headerTintColor: colors.text,
         headerTitleStyle: {fontWeight: '700'},
+        cardStyle: {backgroundColor: colors.background},
       }}>
       {user ? (
         <>
@@ -117,3 +153,23 @@ export function RootNavigator() {
     </Stack.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  tabIconContainer: {
+    alignItems: 'center',
+  },
+  tabIcon: {
+    fontSize: 20,
+    opacity: 0.5,
+  },
+  tabIconActive: {
+    opacity: 1,
+  },
+  activeIndicator: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.primary,
+    marginTop: 2,
+  },
+});
