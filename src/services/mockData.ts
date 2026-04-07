@@ -1,98 +1,66 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {PayPeriod, Expense, RecurringBill} from '../types';
 
-// A lightweight Timestamp-like object for mock data
+// ── MockTimestamp ────────────────────────────────────────────
+
 export class MockTimestamp {
-  private _date: Date;
-
-  constructor(date: Date) {
-    this._date = date;
-  }
-
-  toDate(): Date {
-    return this._date;
-  }
-
-  static now(): MockTimestamp {
-    return new MockTimestamp(new Date());
-  }
-
-  static fromDate(date: Date): MockTimestamp {
-    return new MockTimestamp(date);
-  }
+  _date: Date;
+  constructor(date: Date) { this._date = date; }
+  toDate(): Date { return this._date; }
+  static now(): MockTimestamp { return new MockTimestamp(new Date()); }
+  static fromDate(date: Date): MockTimestamp { return new MockTimestamp(date); }
+  toJSON() { return this._date.toISOString(); }
+  static fromJSON(iso: string): MockTimestamp { return new MockTimestamp(new Date(iso)); }
 }
 
+// ── ID generator ─────────────────────────────────────────────
+
 let nextId = 100;
-function genId(): string {
-  return `mock_${nextId++}`;
+function genId(): string { return `mock_${nextId++}`; }
+
+// ── App Settings (shared state) ──────────────────────────────
+
+export interface AppSettings {
+  client1Name: string;
+  client2Name: string;
+  client1Salary: number;
+  client2Salary: number;
+  client2AnchorDate: string;
+}
+
+const DEFAULT_SETTINGS: AppSettings = {
+  client1Name: 'Client 1',
+  client2Name: 'Client 2',
+  client1Salary: 28000,
+  client2Salary: 25000,
+  client2AnchorDate: '2026-04-10',
+};
+
+let appSettings: AppSettings = {...DEFAULT_SETTINGS};
+const settingsListeners: Set<Listener<AppSettings>> = new Set();
+
+export function getSettings(): AppSettings { return {...appSettings}; }
+
+export function updateSettings(data: Partial<AppSettings>): void {
+  appSettings = {...appSettings, ...data};
+  settingsListeners.forEach(cb => cb({...appSettings}));
+  persistAll();
+}
+
+export function onSettings(callback: Listener<AppSettings>): () => void {
+  settingsListeners.add(callback);
+  callback({...appSettings});
+  return () => { settingsListeners.delete(callback); };
 }
 
 // ── In-memory stores ─────────────────────────────────────────
 
-let payPeriods: PayPeriod[] = [
-  {
-    id: 'pp1',
-    label: 'Apr 5 Pay',
-    type: 'client1',
-    startDate: MockTimestamp.fromDate(new Date(2026, 2, 19)) as any,
-    endDate: MockTimestamp.fromDate(new Date(2026, 3, 4)) as any,
-    payDate: MockTimestamp.fromDate(new Date(2026, 3, 5)) as any,
-    salary: 28000,
-    createdBy: 'mock_user',
-    createdAt: MockTimestamp.now() as any,
-    updatedAt: MockTimestamp.now() as any,
-  },
-  {
-    id: 'pp2',
-    label: 'Apr 10 Pay (Fri)',
-    type: 'client2',
-    startDate: MockTimestamp.fromDate(new Date(2026, 2, 28)) as any,
-    endDate: MockTimestamp.fromDate(new Date(2026, 3, 10)) as any,
-    payDate: MockTimestamp.fromDate(new Date(2026, 3, 10)) as any,
-    salary: 25000,
-    createdBy: 'mock_user',
-    createdAt: MockTimestamp.now() as any,
-    updatedAt: MockTimestamp.now() as any,
-  },
-  {
-    id: 'pp3',
-    label: 'Apr 18 Pay',
-    type: 'client1',
-    startDate: MockTimestamp.fromDate(new Date(2026, 3, 5)) as any,
-    endDate: MockTimestamp.fromDate(new Date(2026, 3, 17)) as any,
-    payDate: MockTimestamp.fromDate(new Date(2026, 3, 18)) as any,
-    salary: 28000,
-    createdBy: 'mock_user',
-    createdAt: MockTimestamp.now() as any,
-    updatedAt: MockTimestamp.now() as any,
-  },
-];
+let payPeriods: PayPeriod[] = [];
+let expenses: Record<string, Expense[]> = {};
+let recurringBills: RecurringBill[] = [];
+let initialized = false;
 
-let expenses: Record<string, Expense[]> = {
-  pp1: [
-    {id: 'e1', description: 'PLDT Internet', amount: 1699, isPaid: true, category: 'Bills', createdBy: 'mock_user', createdAt: MockTimestamp.now() as any, updatedAt: MockTimestamp.now() as any},
-    {id: 'e2', description: 'Meralco Electric', amount: 3500, isPaid: true, category: 'Bills', createdBy: 'mock_user', createdAt: MockTimestamp.now() as any, updatedAt: MockTimestamp.now() as any},
-    {id: 'e3', description: 'Groceries - SM', amount: 4200, isPaid: true, category: 'Food', createdBy: 'mock_user', createdAt: MockTimestamp.now() as any, updatedAt: MockTimestamp.now() as any},
-    {id: 'e4', description: 'Water bill', amount: 350, isPaid: false, category: 'Bills', createdBy: 'mock_user', createdAt: MockTimestamp.now() as any, updatedAt: MockTimestamp.now() as any},
-    {id: 'e5', description: 'Grab transpo', amount: 800, isPaid: true, category: 'Transport', createdBy: 'mock_user', createdAt: MockTimestamp.now() as any, updatedAt: MockTimestamp.now() as any},
-  ],
-  pp2: [
-    {id: 'e6', description: 'Rent', amount: 8000, isPaid: false, category: 'Bills', createdBy: 'mock_user', createdAt: MockTimestamp.now() as any, updatedAt: MockTimestamp.now() as any},
-    {id: 'e7', description: 'Netflix', amount: 549, isPaid: true, category: 'Entertainment', createdBy: 'mock_user', createdAt: MockTimestamp.now() as any, updatedAt: MockTimestamp.now() as any},
-    {id: 'e8', description: 'Spotify', amount: 194, isPaid: true, category: 'Entertainment', createdBy: 'mock_user', createdAt: MockTimestamp.now() as any, updatedAt: MockTimestamp.now() as any},
-  ],
-  pp3: [],
-};
-
-let recurringBills: RecurringBill[] = [
-  {id: 'rb1', description: 'PLDT Internet', amount: 1699, dueDay: 15, frequency: 'monthly', reminderDaysBefore: 3, isActive: true, createdAt: MockTimestamp.now() as any},
-  {id: 'rb2', description: 'Meralco Electric', amount: 3500, dueDay: 20, frequency: 'monthly', reminderDaysBefore: 5, isActive: true, createdAt: MockTimestamp.now() as any},
-  {id: 'rb3', description: 'Water bill', amount: 350, dueDay: 10, frequency: 'monthly', reminderDaysBefore: 3, isActive: true, createdAt: MockTimestamp.now() as any},
-  {id: 'rb4', description: 'Netflix', amount: 549, dueDay: 1, frequency: 'monthly', reminderDaysBefore: 2, isActive: true, createdAt: MockTimestamp.now() as any},
-  {id: 'rb5', description: 'Spotify', amount: 194, dueDay: 1, frequency: 'monthly', reminderDaysBefore: 2, isActive: true, createdAt: MockTimestamp.now() as any},
-  {id: 'rb6', description: 'Rent', amount: 8000, dueDay: 5, frequency: 'monthly', reminderDaysBefore: 5, isActive: true, createdAt: MockTimestamp.now() as any},
-];
-
-// ── Listener system (simulates Firestore onSnapshot) ─────────
+// ── Listener system ──────────────────────────────────────────
 
 type Listener<T> = (data: T) => void;
 
@@ -123,63 +91,201 @@ function notifyRecurringBills() {
   recurringBillListeners.forEach(cb => cb(sorted));
 }
 
-// ── Public API (mirrors firestore.ts interface) ──────────────
+// ── Persistence ──────────────────────────────────────────────
+
+function serializeTimestamp(ts: any): string {
+  if (ts && ts._date) { return ts._date.toISOString(); }
+  if (ts && ts.toDate) { return ts.toDate().toISOString(); }
+  return new Date().toISOString();
+}
+
+function deserializeTimestamp(iso: string): MockTimestamp {
+  return MockTimestamp.fromJSON(iso);
+}
+
+function serializePayPeriod(p: PayPeriod): any {
+  return {
+    ...p,
+    startDate: serializeTimestamp(p.startDate),
+    endDate: serializeTimestamp(p.endDate),
+    payDate: serializeTimestamp(p.payDate),
+    createdAt: serializeTimestamp(p.createdAt),
+    updatedAt: serializeTimestamp(p.updatedAt),
+  };
+}
+
+function deserializePayPeriod(data: any): PayPeriod {
+  return {
+    ...data,
+    startDate: deserializeTimestamp(data.startDate),
+    endDate: deserializeTimestamp(data.endDate),
+    payDate: deserializeTimestamp(data.payDate),
+    createdAt: deserializeTimestamp(data.createdAt),
+    updatedAt: deserializeTimestamp(data.updatedAt),
+  };
+}
+
+function serializeExpense(e: Expense): any {
+  return {
+    ...e,
+    createdAt: serializeTimestamp(e.createdAt),
+    updatedAt: serializeTimestamp(e.updatedAt),
+  };
+}
+
+function deserializeExpense(data: any): Expense {
+  return {
+    ...data,
+    createdAt: deserializeTimestamp(data.createdAt),
+    updatedAt: deserializeTimestamp(data.updatedAt),
+  };
+}
+
+function serializeBill(b: RecurringBill): any {
+  return { ...b, createdAt: serializeTimestamp(b.createdAt) };
+}
+
+function deserializeBill(data: any): RecurringBill {
+  return { ...data, createdAt: deserializeTimestamp(data.createdAt) };
+}
+
+async function persistAll(): Promise<void> {
+  try {
+    const data = {
+      payPeriods: payPeriods.map(serializePayPeriod),
+      expenses: Object.fromEntries(
+        Object.entries(expenses).map(([k, v]) => [k, v.map(serializeExpense)]),
+      ),
+      recurringBills: recurringBills.map(serializeBill),
+      settings: appSettings,
+      nextId,
+    };
+    await AsyncStorage.setItem('@budget_data', JSON.stringify(data));
+  } catch (e) {
+    console.warn('Failed to persist data:', e);
+  }
+}
+
+async function loadPersistedData(): Promise<boolean> {
+  try {
+    const raw = await AsyncStorage.getItem('@budget_data');
+    if (!raw) { return false; }
+    const data = JSON.parse(raw);
+
+    payPeriods = (data.payPeriods || []).map(deserializePayPeriod);
+    expenses = {};
+    for (const [k, v] of Object.entries(data.expenses || {})) {
+      expenses[k] = (v as any[]).map(deserializeExpense);
+    }
+    recurringBills = (data.recurringBills || []).map(deserializeBill);
+    if (data.settings) { appSettings = {...DEFAULT_SETTINGS, ...data.settings}; }
+    if (data.nextId) { nextId = data.nextId; }
+
+    return true;
+  } catch (e) {
+    console.warn('Failed to load data:', e);
+    return false;
+  }
+}
+
+function loadDefaults(): void {
+  payPeriods = [
+    {
+      id: 'pp1', label: 'Apr 5 Pay', type: 'client1',
+      startDate: MockTimestamp.fromDate(new Date(2026, 2, 19)) as any,
+      endDate: MockTimestamp.fromDate(new Date(2026, 3, 4)) as any,
+      payDate: MockTimestamp.fromDate(new Date(2026, 3, 5)) as any,
+      salary: 28000, createdBy: 'mock_user',
+      createdAt: MockTimestamp.now() as any, updatedAt: MockTimestamp.now() as any,
+    },
+    {
+      id: 'pp2', label: 'Apr 10 Pay (Fri)', type: 'client2',
+      startDate: MockTimestamp.fromDate(new Date(2026, 2, 28)) as any,
+      endDate: MockTimestamp.fromDate(new Date(2026, 3, 10)) as any,
+      payDate: MockTimestamp.fromDate(new Date(2026, 3, 10)) as any,
+      salary: 25000, createdBy: 'mock_user',
+      createdAt: MockTimestamp.now() as any, updatedAt: MockTimestamp.now() as any,
+    },
+    {
+      id: 'pp3', label: 'Apr 18 Pay', type: 'client1',
+      startDate: MockTimestamp.fromDate(new Date(2026, 3, 5)) as any,
+      endDate: MockTimestamp.fromDate(new Date(2026, 3, 17)) as any,
+      payDate: MockTimestamp.fromDate(new Date(2026, 3, 18)) as any,
+      salary: 28000, createdBy: 'mock_user',
+      createdAt: MockTimestamp.now() as any, updatedAt: MockTimestamp.now() as any,
+    },
+  ];
+
+  expenses = {
+    pp1: [
+      {id: 'e1', description: 'PLDT Internet', amount: 1699, isPaid: true, category: 'Bills', createdBy: 'mock_user', createdAt: MockTimestamp.now() as any, updatedAt: MockTimestamp.now() as any},
+      {id: 'e2', description: 'Meralco Electric', amount: 3500, isPaid: true, category: 'Bills', createdBy: 'mock_user', createdAt: MockTimestamp.now() as any, updatedAt: MockTimestamp.now() as any},
+      {id: 'e3', description: 'Groceries - SM', amount: 4200, isPaid: true, category: 'Food', createdBy: 'mock_user', createdAt: MockTimestamp.now() as any, updatedAt: MockTimestamp.now() as any},
+      {id: 'e4', description: 'Water bill', amount: 350, isPaid: false, category: 'Bills', createdBy: 'mock_user', createdAt: MockTimestamp.now() as any, updatedAt: MockTimestamp.now() as any},
+      {id: 'e5', description: 'Grab transpo', amount: 800, isPaid: true, category: 'Transport', createdBy: 'mock_user', createdAt: MockTimestamp.now() as any, updatedAt: MockTimestamp.now() as any},
+    ],
+    pp2: [
+      {id: 'e6', description: 'Rent', amount: 8000, isPaid: false, category: 'Bills', createdBy: 'mock_user', createdAt: MockTimestamp.now() as any, updatedAt: MockTimestamp.now() as any},
+      {id: 'e7', description: 'Netflix', amount: 549, isPaid: true, category: 'Entertainment', createdBy: 'mock_user', createdAt: MockTimestamp.now() as any, updatedAt: MockTimestamp.now() as any},
+      {id: 'e8', description: 'Spotify', amount: 194, isPaid: true, category: 'Entertainment', createdBy: 'mock_user', createdAt: MockTimestamp.now() as any, updatedAt: MockTimestamp.now() as any},
+    ],
+    pp3: [],
+  };
+
+  recurringBills = [
+    {id: 'rb1', description: 'PLDT Internet', amount: 1699, dueDay: 15, frequency: 'monthly', reminderDaysBefore: 3, isActive: true, createdAt: MockTimestamp.now() as any},
+    {id: 'rb2', description: 'Meralco Electric', amount: 3500, dueDay: 20, frequency: 'monthly', reminderDaysBefore: 5, isActive: true, createdAt: MockTimestamp.now() as any},
+    {id: 'rb3', description: 'Water bill', amount: 350, dueDay: 10, frequency: 'monthly', reminderDaysBefore: 3, isActive: true, createdAt: MockTimestamp.now() as any},
+    {id: 'rb4', description: 'Netflix', amount: 549, dueDay: 1, frequency: 'monthly', reminderDaysBefore: 2, isActive: true, createdAt: MockTimestamp.now() as any},
+    {id: 'rb5', description: 'Spotify', amount: 194, dueDay: 1, frequency: 'monthly', reminderDaysBefore: 2, isActive: true, createdAt: MockTimestamp.now() as any},
+    {id: 'rb6', description: 'Rent', amount: 8000, dueDay: 5, frequency: 'monthly', reminderDaysBefore: 5, isActive: true, createdAt: MockTimestamp.now() as any},
+  ];
+
+  persistAll();
+}
+
+export async function initializeData(): Promise<void> {
+  if (initialized) { return; }
+  const loaded = await loadPersistedData();
+  if (!loaded) { loadDefaults(); }
+  initialized = true;
+}
+
+// ── Public API ───────────────────────────────────────────────
 
 // Pay Periods
-export function mockOnPayPeriods(
-  callback: Listener<PayPeriod[]>,
-  limit?: number,
-): () => void {
+export function mockOnPayPeriods(callback: Listener<PayPeriod[]>, limit?: number): () => void {
   payPeriodsListListeners.add(callback);
   const sorted = [...payPeriods].sort(
     (a, b) => (b.payDate as any)._date.getTime() - (a.payDate as any)._date.getTime(),
   );
   callback(limit ? sorted.slice(0, limit) : sorted);
-  return () => {
-    payPeriodsListListeners.delete(callback);
-  };
+  return () => { payPeriodsListListeners.delete(callback); };
 }
 
-export function mockOnPayPeriod(
-  periodId: string,
-  callback: Listener<PayPeriod | null>,
-): () => void {
-  if (!payPeriodListeners.has(periodId)) {
-    payPeriodListeners.set(periodId, new Set());
-  }
+export function mockOnPayPeriod(periodId: string, callback: Listener<PayPeriod | null>): () => void {
+  if (!payPeriodListeners.has(periodId)) { payPeriodListeners.set(periodId, new Set()); }
   payPeriodListeners.get(periodId)!.add(callback);
-  const period = payPeriods.find(p => p.id === periodId) ?? null;
-  callback(period);
-  return () => {
-    payPeriodListeners.get(periodId)?.delete(callback);
-  };
+  callback(payPeriods.find(p => p.id === periodId) ?? null);
+  return () => { payPeriodListeners.get(periodId)?.delete(callback); };
 }
 
-export function mockCreatePayPeriod(
-  data: Omit<PayPeriod, 'id' | 'createdAt' | 'updatedAt'>,
-): string {
+export function mockCreatePayPeriod(data: Omit<PayPeriod, 'id' | 'createdAt' | 'updatedAt'>): string {
   const id = genId();
-  const period: PayPeriod = {
-    ...data,
-    id,
-    createdAt: MockTimestamp.now() as any,
-    updatedAt: MockTimestamp.now() as any,
-  };
-  payPeriods.push(period);
+  payPeriods.push({...data, id, createdAt: MockTimestamp.now() as any, updatedAt: MockTimestamp.now() as any});
   expenses[id] = [];
   notifyPayPeriodsList();
+  persistAll();
   return id;
 }
 
-export function mockUpdatePayPeriod(
-  id: string,
-  data: Partial<PayPeriod>,
-): void {
+export function mockUpdatePayPeriod(id: string, data: Partial<PayPeriod>): void {
   const idx = payPeriods.findIndex(p => p.id === id);
   if (idx !== -1) {
     payPeriods[idx] = {...payPeriods[idx], ...data, updatedAt: MockTimestamp.now() as any};
     notifyPayPeriod(id);
     notifyPayPeriodsList();
+    persistAll();
   }
 }
 
@@ -188,114 +294,91 @@ export function mockDeletePayPeriod(id: string): void {
   delete expenses[id];
   notifyPayPeriod(id);
   notifyPayPeriodsList();
+  persistAll();
 }
 
 // Expenses
-export function mockOnExpenses(
-  periodId: string,
-  callback: Listener<Expense[]>,
-): () => void {
-  if (!expenseListeners.has(periodId)) {
-    expenseListeners.set(periodId, new Set());
-  }
+export function mockOnExpenses(periodId: string, callback: Listener<Expense[]>): () => void {
+  if (!expenseListeners.has(periodId)) { expenseListeners.set(periodId, new Set()); }
   expenseListeners.get(periodId)!.add(callback);
   callback([...(expenses[periodId] || [])]);
-  return () => {
-    expenseListeners.get(periodId)?.delete(callback);
-  };
+  return () => { expenseListeners.get(periodId)?.delete(callback); };
 }
 
-export function mockAddExpense(
-  periodId: string,
-  data: Omit<Expense, 'id' | 'createdAt' | 'updatedAt'>,
-): string {
+export function mockAddExpense(periodId: string, data: Omit<Expense, 'id' | 'createdAt' | 'updatedAt'>): string {
   const id = genId();
-  const expense: Expense = {
-    ...data,
-    id,
-    createdAt: MockTimestamp.now() as any,
-    updatedAt: MockTimestamp.now() as any,
-  };
-  if (!expenses[periodId]) {
-    expenses[periodId] = [];
-  }
-  expenses[periodId].push(expense);
+  if (!expenses[periodId]) { expenses[periodId] = []; }
+  expenses[periodId].push({...data, id, createdAt: MockTimestamp.now() as any, updatedAt: MockTimestamp.now() as any});
   notifyExpenses(periodId);
+  persistAll();
   return id;
 }
 
-export function mockUpdateExpense(
-  periodId: string,
-  expenseId: string,
-  data: Partial<Expense>,
-): void {
+export function mockUpdateExpense(periodId: string, expenseId: string, data: Partial<Expense>): void {
   const list = expenses[periodId];
   if (list) {
     const idx = list.findIndex(e => e.id === expenseId);
     if (idx !== -1) {
       list[idx] = {...list[idx], ...data, updatedAt: MockTimestamp.now() as any};
       notifyExpenses(periodId);
+      persistAll();
     }
   }
 }
 
-export function mockDeleteExpense(
-  periodId: string,
-  expenseId: string,
-): void {
-  const list = expenses[periodId];
-  if (list) {
-    expenses[periodId] = list.filter(e => e.id !== expenseId);
+export function mockDeleteExpense(periodId: string, expenseId: string): void {
+  if (expenses[periodId]) {
+    expenses[periodId] = expenses[periodId].filter(e => e.id !== expenseId);
     notifyExpenses(periodId);
+    persistAll();
   }
 }
 
-export function mockToggleExpensePaid(
-  periodId: string,
-  expenseId: string,
-  isPaid: boolean,
-): void {
+export function mockToggleExpensePaid(periodId: string, expenseId: string, isPaid: boolean): void {
   mockUpdateExpense(periodId, expenseId, {isPaid});
 }
 
 // Recurring Bills
-export function mockOnRecurringBills(
-  callback: Listener<RecurringBill[]>,
-): () => void {
+export function mockOnRecurringBills(callback: Listener<RecurringBill[]>): () => void {
   recurringBillListeners.add(callback);
-  const sorted = [...recurringBills].sort((a, b) => a.dueDay - b.dueDay);
-  callback(sorted);
-  return () => {
-    recurringBillListeners.delete(callback);
-  };
+  callback([...recurringBills].sort((a, b) => a.dueDay - b.dueDay));
+  return () => { recurringBillListeners.delete(callback); };
 }
 
-export function mockAddRecurringBill(
-  data: Omit<RecurringBill, 'id' | 'createdAt'>,
-): string {
+export function mockAddRecurringBill(data: Omit<RecurringBill, 'id' | 'createdAt'>): string {
   const id = genId();
-  const bill: RecurringBill = {
-    ...data,
-    id,
-    createdAt: MockTimestamp.now() as any,
-  };
-  recurringBills.push(bill);
+  recurringBills.push({...data, id, createdAt: MockTimestamp.now() as any});
   notifyRecurringBills();
+  persistAll();
   return id;
 }
 
-export function mockUpdateRecurringBill(
-  id: string,
-  data: Partial<RecurringBill>,
-): void {
+export function mockUpdateRecurringBill(id: string, data: Partial<RecurringBill>): void {
   const idx = recurringBills.findIndex(b => b.id === id);
   if (idx !== -1) {
     recurringBills[idx] = {...recurringBills[idx], ...data};
     notifyRecurringBills();
+    persistAll();
   }
 }
 
 export function mockDeleteRecurringBill(id: string): void {
   recurringBills = recurringBills.filter(b => b.id !== id);
   notifyRecurringBills();
+  persistAll();
+}
+
+// Helper to get all expenses across all periods (for monthly totals)
+export function getAllExpenses(): {periodId: string; expense: Expense}[] {
+  const result: {periodId: string; expense: Expense}[] = [];
+  for (const [periodId, list] of Object.entries(expenses)) {
+    for (const expense of list) {
+      result.push({periodId, expense});
+    }
+  }
+  return result;
+}
+
+export function getAllPayPeriods(): PayPeriod[] {
+  return [...payPeriods];
 }
