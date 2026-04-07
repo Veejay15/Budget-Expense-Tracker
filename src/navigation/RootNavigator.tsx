@@ -10,6 +10,7 @@ import {AddExpenseScreen} from '../screens/AddExpenseScreen';
 import {HistoryScreen} from '../screens/HistoryScreen';
 import {RecurringBillsScreen} from '../screens/RecurringBillsScreen';
 import {SettingsScreen} from '../screens/SettingsScreen';
+import {AddPayPeriodScreen} from '../screens/AddPayPeriodScreen';
 import {useAuth} from '../hooks/useAuth';
 import {colors, fontSize} from '../theme';
 import {ActivityIndicator} from 'react-native';
@@ -134,6 +135,11 @@ export function RootNavigator() {
             options={({route}) => ({
               title: route.params.label,
             })}
+          />
+          <Stack.Screen
+            name="AddPayPeriod"
+            component={AddPayPeriodScreen}
+            options={{title: 'New Pay Period'}}
           />
           <Stack.Screen
             name="AddExpense"

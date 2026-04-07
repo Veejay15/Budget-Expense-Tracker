@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import {mockSignOut, getMockCurrentUser} from '../hooks/useAuth';
 import {useSettings} from '../hooks/useSettings';
-import {updateSettings} from '../services/mockData';
+import {updateSettings, resetAllData} from '../services/mockData';
 import {setClient2Anchor} from '../services/paySchedule';
 import {format, isFriday, parse} from 'date-fns';
 import {colors, spacing, fontSize, borderRadius} from '../theme';
@@ -126,6 +126,16 @@ export function SettingsScreen() {
         <Text style={styles.aboutSub}>Built for Veejay & Claire</Text>
       </View>
 
+      {/* Reset Data */}
+      <TouchableOpacity style={styles.resetButton} onPress={() => {
+        Alert.alert('Reset All Data', 'This will delete all pay periods, expenses, and bills. Are you sure?', [
+          {text: 'Cancel', style: 'cancel'},
+          {text: 'Reset', style: 'destructive', onPress: () => resetAllData()},
+        ]);
+      }}>
+        <Text style={styles.resetText}>Reset All Data</Text>
+      </TouchableOpacity>
+
       {/* Sign Out */}
       <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
         <Text style={styles.signOutText}>Sign Out</Text>
@@ -162,6 +172,11 @@ const styles = StyleSheet.create({
   saveAllText: {color: colors.background, fontWeight: '700', fontSize: fontSize.md},
   aboutTitle: {fontSize: fontSize.md, fontWeight: '700', color: colors.text},
   aboutSub: {fontSize: fontSize.sm, color: colors.textSecondary, marginTop: spacing.xs},
+  resetButton: {
+    marginTop: spacing.lg, backgroundColor: 'transparent', borderRadius: borderRadius.md,
+    padding: spacing.md, alignItems: 'center', borderWidth: 1, borderColor: colors.warning,
+  },
+  resetText: {color: colors.warning, fontSize: fontSize.md, fontWeight: '700'},
   signOutButton: {
     marginTop: spacing.lg, backgroundColor: 'transparent', borderRadius: borderRadius.md,
     padding: spacing.md, alignItems: 'center', borderWidth: 1, borderColor: colors.danger,

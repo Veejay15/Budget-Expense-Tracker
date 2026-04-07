@@ -51,6 +51,7 @@ export type RootStackParamList = {
   PayPeriod: {periodId: string; label: string};
   AddExpense: {periodId: string; expense?: Expense};
   AddBill: {bill?: RecurringBill};
+  AddPayPeriod: undefined;
 };
 
 export type MainTabParamList = {

@@ -6,6 +6,8 @@ import {
 import {useRecurringBills} from '../hooks/useRecurringBills';
 import {mockAddRecurringBill, mockUpdateRecurringBill, mockDeleteRecurringBill} from '../services/mockData';
 import {RecurringBill} from '../types';
+import {scheduleBillReminder} from '../services/localNotifications';
+import notifee from '@notifee/react-native';
 import {formatPeso, parsePesoInput} from '../utils/currency';
 import {SwipeableRow} from '../components/SwipeableRow';
 import {colors, spacing, fontSize, borderRadius} from '../theme';
@@ -35,15 +37,24 @@ export function RecurringBillsScreen() {
       description: description.trim(), amount: parsePesoInput(amount), dueDay: day,
       frequency: 'monthly' as const, reminderDaysBefore: parseInt(reminderDays, 10) || 3, isActive: true,
     };
-    if (editingBill) { mockUpdateRecurringBill(editingBill.id, data); }
-    else { mockAddRecurringBill(data); }
+    let billId: string;
+    if (editingBill) { mockUpdateRecurringBill(editingBill.id, data); billId = editingBill.id; }
+    else { billId = mockAddRecurringBill(data); }
+
+    // Schedule push notification for this bill
+    scheduleBillReminder(billId, data.description, data.amount, data.dueDay, data.reminderDaysBefore)
+      .catch(() => {});
+
     setModalVisible(false); resetForm();
   };
 
   const handleDelete = (bill: RecurringBill) => {
     Alert.alert('Delete Bill', `Delete "${bill.description}"?`, [
       {text: 'Cancel', style: 'cancel'},
-      {text: 'Delete', style: 'destructive', onPress: () => mockDeleteRecurringBill(bill.id)},
+      {text: 'Delete', style: 'destructive', onPress: () => {
+        mockDeleteRecurringBill(bill.id);
+        notifee.cancelNotification(`bill-${bill.id}`).catch(() => {});
+      }},
     ]);
   };
 

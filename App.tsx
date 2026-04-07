@@ -5,13 +5,19 @@ import {NavigationContainer} from '@react-navigation/native';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import {RootNavigator} from './src/navigation/RootNavigator';
 import {initializeData} from './src/services/mockData';
+import {setupNotificationChannel} from './src/services/localNotifications';
 import {colors} from './src/theme';
 
 function App() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    initializeData().then(() => setReady(true));
+    async function init() {
+      await initializeData();
+      await setupNotificationChannel();
+      setReady(true);
+    }
+    init();
   }, []);
 
   if (!ready) {

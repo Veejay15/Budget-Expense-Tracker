@@ -189,57 +189,12 @@ async function loadPersistedData(): Promise<boolean> {
 }
 
 function loadDefaults(): void {
-  payPeriods = [
-    {
-      id: 'pp1', label: 'Apr 5 Pay', type: 'client1',
-      startDate: MockTimestamp.fromDate(new Date(2026, 2, 19)) as any,
-      endDate: MockTimestamp.fromDate(new Date(2026, 3, 4)) as any,
-      payDate: MockTimestamp.fromDate(new Date(2026, 3, 5)) as any,
-      salary: 28000, createdBy: 'mock_user',
-      createdAt: MockTimestamp.now() as any, updatedAt: MockTimestamp.now() as any,
-    },
-    {
-      id: 'pp2', label: 'Apr 10 Pay (Fri)', type: 'client2',
-      startDate: MockTimestamp.fromDate(new Date(2026, 2, 28)) as any,
-      endDate: MockTimestamp.fromDate(new Date(2026, 3, 10)) as any,
-      payDate: MockTimestamp.fromDate(new Date(2026, 3, 10)) as any,
-      salary: 25000, createdBy: 'mock_user',
-      createdAt: MockTimestamp.now() as any, updatedAt: MockTimestamp.now() as any,
-    },
-    {
-      id: 'pp3', label: 'Apr 18 Pay', type: 'client1',
-      startDate: MockTimestamp.fromDate(new Date(2026, 3, 5)) as any,
-      endDate: MockTimestamp.fromDate(new Date(2026, 3, 17)) as any,
-      payDate: MockTimestamp.fromDate(new Date(2026, 3, 18)) as any,
-      salary: 28000, createdBy: 'mock_user',
-      createdAt: MockTimestamp.now() as any, updatedAt: MockTimestamp.now() as any,
-    },
-  ];
+  // Start with empty pay periods - user will create their own
+  payPeriods = [];
+  expenses = {};
 
-  expenses = {
-    pp1: [
-      {id: 'e1', description: 'PLDT Internet', amount: 1699, isPaid: true, category: 'Bills', createdBy: 'mock_user', createdAt: MockTimestamp.now() as any, updatedAt: MockTimestamp.now() as any},
-      {id: 'e2', description: 'Meralco Electric', amount: 3500, isPaid: true, category: 'Bills', createdBy: 'mock_user', createdAt: MockTimestamp.now() as any, updatedAt: MockTimestamp.now() as any},
-      {id: 'e3', description: 'Groceries - SM', amount: 4200, isPaid: true, category: 'Food', createdBy: 'mock_user', createdAt: MockTimestamp.now() as any, updatedAt: MockTimestamp.now() as any},
-      {id: 'e4', description: 'Water bill', amount: 350, isPaid: false, category: 'Bills', createdBy: 'mock_user', createdAt: MockTimestamp.now() as any, updatedAt: MockTimestamp.now() as any},
-      {id: 'e5', description: 'Grab transpo', amount: 800, isPaid: true, category: 'Transport', createdBy: 'mock_user', createdAt: MockTimestamp.now() as any, updatedAt: MockTimestamp.now() as any},
-    ],
-    pp2: [
-      {id: 'e6', description: 'Rent', amount: 8000, isPaid: false, category: 'Bills', createdBy: 'mock_user', createdAt: MockTimestamp.now() as any, updatedAt: MockTimestamp.now() as any},
-      {id: 'e7', description: 'Netflix', amount: 549, isPaid: true, category: 'Entertainment', createdBy: 'mock_user', createdAt: MockTimestamp.now() as any, updatedAt: MockTimestamp.now() as any},
-      {id: 'e8', description: 'Spotify', amount: 194, isPaid: true, category: 'Entertainment', createdBy: 'mock_user', createdAt: MockTimestamp.now() as any, updatedAt: MockTimestamp.now() as any},
-    ],
-    pp3: [],
-  };
-
-  recurringBills = [
-    {id: 'rb1', description: 'PLDT Internet', amount: 1699, dueDay: 15, frequency: 'monthly', reminderDaysBefore: 3, isActive: true, createdAt: MockTimestamp.now() as any},
-    {id: 'rb2', description: 'Meralco Electric', amount: 3500, dueDay: 20, frequency: 'monthly', reminderDaysBefore: 5, isActive: true, createdAt: MockTimestamp.now() as any},
-    {id: 'rb3', description: 'Water bill', amount: 350, dueDay: 10, frequency: 'monthly', reminderDaysBefore: 3, isActive: true, createdAt: MockTimestamp.now() as any},
-    {id: 'rb4', description: 'Netflix', amount: 549, dueDay: 1, frequency: 'monthly', reminderDaysBefore: 2, isActive: true, createdAt: MockTimestamp.now() as any},
-    {id: 'rb5', description: 'Spotify', amount: 194, dueDay: 1, frequency: 'monthly', reminderDaysBefore: 2, isActive: true, createdAt: MockTimestamp.now() as any},
-    {id: 'rb6', description: 'Rent', amount: 8000, dueDay: 5, frequency: 'monthly', reminderDaysBefore: 5, isActive: true, createdAt: MockTimestamp.now() as any},
-  ];
+  // Start with empty recurring bills - user adds from Bills tab
+  recurringBills = [];
 
   persistAll();
 }
@@ -249,6 +204,19 @@ export async function initializeData(): Promise<void> {
   const loaded = await loadPersistedData();
   if (!loaded) { loadDefaults(); }
   initialized = true;
+}
+
+// Reset all data to start fresh
+export async function resetAllData(): Promise<void> {
+  payPeriods = [];
+  expenses = {};
+  recurringBills = [];
+  appSettings = {...DEFAULT_SETTINGS};
+  nextId = 100;
+  await AsyncStorage.removeItem('@budget_data');
+  notifyPayPeriodsList();
+  notifyRecurringBills();
+  settingsListeners.forEach(cb => cb({...appSettings}));
 }
 
 // ── Public API ───────────────────────────────────────────────

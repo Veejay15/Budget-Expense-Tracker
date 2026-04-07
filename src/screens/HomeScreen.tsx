@@ -5,50 +5,58 @@ import {
 } from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
-import {RootStackParamList, Expense} from '../types';
-import {useCurrentPayPeriods} from '../hooks/usePayPeriods';
+import {RootStackParamList} from '../types';
+import {usePayPeriods} from '../hooks/usePayPeriods';
 import {useSettings} from '../hooks/useSettings';
 import {PayPeriodCard} from '../components/PayPeriodCard';
-import {mockCreatePayPeriod, MockTimestamp, getAllExpenses, getSettings} from '../services/mockData';
-import {getUpcomingPayDates} from '../services/paySchedule';
+import {getAllExpenses} from '../services/mockData';
 import {formatPeso} from '../utils/currency';
+import {format, addMonths, subMonths, isSameMonth} from 'date-fns';
 import {colors, spacing, fontSize, borderRadius} from '../theme';
 
 type NavProp = StackNavigationProp<RootStackParamList>;
 
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
 export function HomeScreen() {
   const navigation = useNavigation<NavProp>();
-  const {periods, loading} = useCurrentPayPeriods();
+  const {periods, loading} = usePayPeriods();
   const settings = useSettings();
   const [refreshing, setRefreshing] = useState(false);
-
-  const handleCreatePeriod = useCallback(() => {
-    const upcoming = getUpcomingPayDates(new Date(), 1);
-    if (upcoming.length === 0) {return;}
-    const next = upcoming[0];
-    const s = getSettings();
-    const salary = next.type === 'client1' ? s.client1Salary : s.client2Salary;
-    mockCreatePayPeriod({
-      label: next.label, type: next.type,
-      startDate: MockTimestamp.fromDate(next.start) as any,
-      endDate: MockTimestamp.fromDate(next.end) as any,
-      payDate: MockTimestamp.fromDate(next.date) as any,
-      salary, createdBy: 'mock_user',
-    });
-  }, []);
+  const [viewDate, setViewDate] = useState(new Date());
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     setTimeout(() => setRefreshing(false), 500);
   }, []);
 
-  // Calculate totals
-  const totalSalary = useMemo(() => periods.reduce((sum, p) => sum + p.salary, 0), [periods]);
+  // Filter periods for the current month view
+  const monthPeriods = useMemo(() => {
+    return periods.filter(p => {
+      const payDate = (p.payDate as any)._date || (p.payDate as any).toDate?.();
+      return payDate && isSameMonth(payDate, viewDate);
+    });
+  }, [periods, viewDate]);
+
+  // Calculate totals for the viewed month
+  const totalSalary = useMemo(
+    () => monthPeriods.reduce((sum, p) => sum + p.salary, 0),
+    [monthPeriods],
+  );
 
   const totalMonthlySpend = useMemo(() => {
-    const allExpenses = getAllExpenses();
-    return allExpenses.reduce((sum, {expense}) => sum + expense.amount, 0);
-  }, [periods]); // re-calc when periods change
+    const allExp = getAllExpenses();
+    // Filter expenses that belong to this month's periods
+    const monthPeriodIds = new Set(monthPeriods.map(p => p.id));
+    return allExp
+      .filter(({periodId}) => monthPeriodIds.has(periodId))
+      .reduce((sum, {expense}) => sum + expense.amount, 0);
+  }, [monthPeriods]);
+
+  const monthLabel = `${MONTH_NAMES[viewDate.getMonth()]} ${viewDate.getFullYear()}`;
 
   if (loading) {
     return (
@@ -75,12 +83,23 @@ export function HomeScreen() {
           </View>
         </View>
 
+        {/* Month Navigator */}
+        <View style={styles.monthNav}>
+          <TouchableOpacity onPress={() => setViewDate(prev => subMonths(prev, 1))} style={styles.monthArrow}>
+            <Text style={styles.monthArrowText}>◀</Text>
+          </TouchableOpacity>
+          <Text style={styles.monthLabel}>{monthLabel}</Text>
+          <TouchableOpacity onPress={() => setViewDate(prev => addMonths(prev, 1))} style={styles.monthArrow}>
+            <Text style={styles.monthArrowText}>▶</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Balance Card */}
         <View style={styles.balanceCard}>
           <Text style={styles.balanceLabel}>Available Balance</Text>
-          <Text style={styles.balanceAmount}>{formatPeso(totalSalary)}</Text>
+          <Text style={styles.balanceAmount}>{formatPeso(totalSalary - totalMonthlySpend)}</Text>
           <Text style={styles.monthlySpend}>
-            This month's total spend: {formatPeso(totalMonthlySpend)}
+            Total spend this month: {formatPeso(totalMonthlySpend)}
           </Text>
           <View style={styles.balanceStats}>
             <View style={styles.balanceStat}>
@@ -109,20 +128,20 @@ export function HomeScreen() {
 
         {/* Pay Periods */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Pay Periods</Text>
-          <TouchableOpacity onPress={handleCreatePeriod}>
+          <Text style={styles.sectionTitle}>Paydays</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('AddPayPeriod')}>
             <Text style={styles.addButton}>+ Add</Text>
           </TouchableOpacity>
         </View>
 
-        {periods.length === 0 ? (
+        {monthPeriods.length === 0 ? (
           <View style={styles.empty}>
             <Text style={styles.emptyIcon}>📄</Text>
-            <Text style={styles.emptyText}>No pay periods yet</Text>
-            <Text style={styles.emptySubtext}>Tap "+ Add" to create your first pay period</Text>
+            <Text style={styles.emptyText}>No paydays for {monthLabel}</Text>
+            <Text style={styles.emptySubtext}>Tap "+ Add" to create a pay period</Text>
           </View>
         ) : (
-          periods.map(item => (
+          monthPeriods.map(item => (
             <PayPeriodCard
               key={item.id}
               payPeriod={item}
@@ -141,7 +160,7 @@ const styles = StyleSheet.create({
   scroll: {paddingBottom: spacing.xl},
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: spacing.lg, paddingTop: spacing.xl + spacing.md, paddingBottom: spacing.md,
+    paddingHorizontal: spacing.lg, paddingTop: spacing.xl + spacing.md, paddingBottom: spacing.sm,
   },
   greeting: {fontSize: fontSize.sm, color: colors.textSecondary},
   name: {fontSize: fontSize.xl, fontWeight: '700', color: colors.text},
@@ -150,8 +169,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: colors.primary,
   },
   avatar: {fontSize: 22},
+  // Month Nav
+  monthNav: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    marginHorizontal: spacing.lg, marginTop: spacing.sm, marginBottom: spacing.sm,
+    backgroundColor: colors.surface, borderRadius: borderRadius.md, padding: spacing.sm,
+    borderWidth: 1, borderColor: colors.border,
+  },
+  monthArrow: {padding: spacing.sm},
+  monthArrowText: {fontSize: fontSize.md, color: colors.primary, fontWeight: '700'},
+  monthLabel: {fontSize: fontSize.md, fontWeight: '700', color: colors.text},
+  // Balance Card
   balanceCard: {
-    marginHorizontal: spacing.lg, marginTop: spacing.sm, backgroundColor: colors.surface,
+    marginHorizontal: spacing.lg, marginTop: spacing.xs, backgroundColor: colors.surface,
     borderRadius: borderRadius.xl, padding: spacing.lg, borderWidth: 1, borderColor: colors.border,
   },
   balanceLabel: {fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: spacing.xs},
@@ -165,14 +195,15 @@ const styles = StyleSheet.create({
   statDot: {width: 8, height: 8, borderRadius: 4},
   statValue: {fontSize: fontSize.xs, fontWeight: '700', color: colors.text},
   statLabel: {fontSize: fontSize.xs, color: colors.textMuted},
+  // Sections
   sectionHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: spacing.lg, marginTop: spacing.lg, marginBottom: spacing.sm,
   },
   sectionTitle: {fontSize: fontSize.lg, fontWeight: '700', color: colors.text},
   addButton: {fontSize: fontSize.md, fontWeight: '600', color: colors.primary},
-  empty: {alignItems: 'center', paddingVertical: spacing.xl * 2},
+  empty: {alignItems: 'center', paddingVertical: spacing.xl},
   emptyIcon: {fontSize: 48, marginBottom: spacing.md},
-  emptyText: {fontSize: fontSize.lg, fontWeight: '600', color: colors.textSecondary},
+  emptyText: {fontSize: fontSize.md, fontWeight: '600', color: colors.textSecondary},
   emptySubtext: {fontSize: fontSize.sm, color: colors.textMuted, marginTop: spacing.xs},
 });
