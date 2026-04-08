@@ -1,5 +1,6 @@
 import React, {useState, useEffect, useMemo} from 'react';
-import {View, Text, StyleSheet, TouchableOpacity} from 'react-native';
+import {View, Text, StyleSheet, TouchableOpacity, Alert} from 'react-native';
+import {mockDeletePayPeriod} from '../services/mockData';
 import {PayPeriod, Expense} from '../types';
 import {mockOnExpenses, getSettings} from '../services/mockData';
 import {useSettings} from '../hooks/useSettings';
@@ -33,8 +34,15 @@ export function PayPeriodCard({payPeriod, onPress}: Props) {
   const typeBadgeColor = payPeriod.type === 'client1' ? colors.primary : payPeriod.type === 'client2' ? '#8B5CF6' : colors.warning;
   const typeIcon = payPeriod.type === 'client1' ? '💼' : payPeriod.type === 'client2' ? '🏢' : '⭐';
 
+  const handleDelete = () => {
+    Alert.alert('Delete Pay Period', `Delete "${payPeriod.label}" and all its expenses?`, [
+      {text: 'Cancel', style: 'cancel'},
+      {text: 'Delete', style: 'destructive', onPress: () => mockDeletePayPeriod(payPeriod.id)},
+    ]);
+  };
+
   return (
-    <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity style={styles.container} onPress={onPress} onLongPress={handleDelete} activeOpacity={0.7}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Text style={styles.typeIcon}>{typeIcon}</Text>
@@ -69,7 +77,12 @@ export function PayPeriodCard({payPeriod, onPress}: Props) {
 
       <View style={styles.footer}>
         <Text style={styles.expenseCount}>{expenses.length} expense{expenses.length !== 1 ? 's' : ''}</Text>
-        <Text style={styles.arrow}>→</Text>
+        <View style={styles.footerRight}>
+          <TouchableOpacity onPress={handleDelete} hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
+            <Text style={styles.deleteBtn}>🗑️</Text>
+          </TouchableOpacity>
+          <Text style={styles.arrow}>→</Text>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -97,5 +110,7 @@ const styles = StyleSheet.create({
   statValue: {fontSize: fontSize.md, fontWeight: '700'},
   footer: {flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.sm},
   expenseCount: {fontSize: fontSize.xs, color: colors.textMuted},
+  footerRight: {flexDirection: 'row', alignItems: 'center', gap: spacing.md},
+  deleteBtn: {fontSize: 16},
   arrow: {fontSize: fontSize.md, color: colors.primary, fontWeight: '700'},
 });

@@ -6,7 +6,7 @@ import {mockSignOut, getMockCurrentUser} from '../hooks/useAuth';
 import {useSettings} from '../hooks/useSettings';
 import {updateSettings, resetAllData} from '../services/mockData';
 import {setClient2Anchor} from '../services/paySchedule';
-import {format, isFriday, parse} from 'date-fns';
+import {isFriday, parse} from 'date-fns';
 import {colors, spacing, fontSize, borderRadius} from '../theme';
 
 export function SettingsScreen() {
@@ -20,16 +20,18 @@ export function SettingsScreen() {
   const [anchorDate, setAnchorDate] = useState('');
   const [saved, setSaved] = useState(false);
 
-  // Sync from settings when loaded
+  // Sync from settings only on first load
+  const [loaded, setLoaded] = useState(false);
   useEffect(() => {
-    if (settings) {
+    if (settings && !loaded) {
       setClient1Name(settings.client1Name);
       setClient2Name(settings.client2Name);
       setClient1Salary(settings.client1Salary.toString());
       setClient2Salary(settings.client2Salary.toString());
       setAnchorDate(settings.client2AnchorDate);
+      setLoaded(true);
     }
-  }, [settings?.client1Name, settings?.client2Name, settings?.client1Salary, settings?.client2Salary, settings?.client2AnchorDate]);
+  }, [settings, loaded]);
 
   const handleSaveAll = () => {
     const s1 = parseFloat(client1Salary) || 0;
@@ -130,7 +132,7 @@ export function SettingsScreen() {
       <TouchableOpacity style={styles.resetButton} onPress={() => {
         Alert.alert('Reset All Data', 'This will delete all pay periods, expenses, and bills. Are you sure?', [
           {text: 'Cancel', style: 'cancel'},
-          {text: 'Reset', style: 'destructive', onPress: () => resetAllData()},
+          {text: 'Reset', style: 'destructive', onPress: () => { resetAllData(); setLoaded(false); }},
         ]);
       }}>
         <Text style={styles.resetText}>Reset All Data</Text>
