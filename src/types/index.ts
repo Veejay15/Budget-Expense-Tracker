@@ -34,6 +34,7 @@ export interface RecurringBill {
   frequency: 'monthly' | 'semi-monthly' | 'bi-weekly';
   reminderDaysBefore: number;
   isActive: boolean;
+  clientType?: 'client1' | 'client2';
   createdAt: Timestamp;
 }
 

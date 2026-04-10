@@ -1,10 +1,13 @@
-import React, {useMemo, useState} from 'react';
+import React, {useMemo, useState, useEffect} from 'react';
 import {View, Text, ScrollView, StyleSheet, TouchableOpacity} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {useRecurringBills} from '../../hooks/useRecurringBills';
 import {filterBillsByPeriod, FilterPeriod} from '../../utils/billDates';
-import {formatPeso} from '../../utils/currency';
 import {BillCard} from './BillCard';
+import {
+  getAllExpenses, getAllPayPeriods,
+  mockToggleExpensePaid, mockOnExpenses,
+} from '../../services/mockData';
 import {colors, spacing, fontSize, borderRadius} from '../../theme';
 
 const FILTER_OPTIONS: {key: FilterPeriod; label: string}[] = [
@@ -19,20 +22,68 @@ const PERIOD_LABELS: Record<FilterPeriod, string> = {
   month: 'this month',
 };
 
+interface ExpenseMatch {
+  periodId: string;
+  expenseId: string;
+  isPaid: boolean;
+}
+
 export function DueThisWeekWidget() {
   const navigation = useNavigation<any>();
   const {activeBills, loading} = useRecurringBills();
   const [selectedPeriod, setSelectedPeriod] = useState<FilterPeriod>('week');
+  const [expenseVersion, setExpenseVersion] = useState(0);
+
+  // Subscribe to expense changes across all periods to track paid status
+  useEffect(() => {
+    const periods = getAllPayPeriods();
+    const unsubscribers = periods.map(p =>
+      mockOnExpenses(p.id, () => {
+        setExpenseVersion(v => v + 1);
+      }),
+    );
+    return () => unsubscribers.forEach(unsub => unsub());
+  }, []);
 
   const filteredBills = useMemo(
     () => filterBillsByPeriod(activeBills, selectedPeriod),
     [activeBills, selectedPeriod],
   );
 
-  const totalAmount = useMemo(
-    () => filteredBills.reduce((sum, b) => sum + b.amount, 0),
-    [filteredBills],
-  );
+  // Find matching expenses for each bill (to check paid status)
+  const billExpenseMap = useMemo(() => {
+    const allExp = getAllExpenses();
+    const map: Record<string, ExpenseMatch> = {};
+
+    for (const bill of filteredBills) {
+      // Find an expense matching this bill's description with category 'Bills'
+      const match = allExp.find(
+        ({expense}) =>
+          expense.description === bill.description &&
+          expense.category === 'Bills',
+      );
+      if (match) {
+        map[bill.id] = {
+          periodId: match.periodId,
+          expenseId: match.expense.id,
+          isPaid: match.expense.isPaid,
+        };
+      }
+    }
+    return map;
+  }, [filteredBills, expenseVersion]);
+
+  // Split into unpaid and paid
+  const unpaidBills = filteredBills.filter(b => !billExpenseMap[b.id]?.isPaid);
+  const paidBills = filteredBills.filter(b => billExpenseMap[b.id]?.isPaid);
+  const displayBills = [...unpaidBills, ...paidBills];
+
+  const handleTogglePaid = (billId: string) => {
+    const match = billExpenseMap[billId];
+    if (match) {
+      mockToggleExpensePaid(match.periodId, match.expenseId, !match.isPaid);
+    }
+  };
 
   if (loading || activeBills.length === 0) {
     return null;
@@ -73,36 +124,24 @@ export function DueThisWeekWidget() {
       </View>
 
       {/* Bill Cards */}
-      {filteredBills.length > 0 ? (
+      {displayBills.length > 0 ? (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.cardsContainer}>
-          {filteredBills.map(bill => (
-            <BillCard key={bill.id} bill={bill} />
+          {displayBills.map(bill => (
+            <BillCard
+              key={bill.id}
+              bill={bill}
+              isPaid={billExpenseMap[bill.id]?.isPaid ?? false}
+              onTogglePaid={() => handleTogglePaid(bill.id)}
+            />
           ))}
         </ScrollView>
       ) : (
         <View style={styles.emptyState}>
           <Text style={styles.emptyText}>
             No bills due {PERIOD_LABELS[selectedPeriod]}
-          </Text>
-        </View>
-      )}
-
-      {/* AI Summary Card */}
-      {filteredBills.length > 0 && (
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryBadge}>
-            <Text style={styles.summaryBadgeDot}>●</Text>
-            <Text style={styles.summaryBadgeText}>STEWARDLY AI</Text>
-          </View>
-          <Text style={styles.summaryTitle}>
-            {filteredBills.length} payment{filteredBills.length !== 1 ? 's' : ''} due{' '}
-            {PERIOD_LABELS[selectedPeriod]}
-          </Text>
-          <Text style={styles.summarySubtext}>
-            {formatPeso(totalAmount)} needs to go out soon. Stay ahead of your deadlines.
           </Text>
         </View>
       )}
@@ -114,7 +153,6 @@ const styles = StyleSheet.create({
   container: {
     marginTop: spacing.lg,
   },
-  // Header
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -140,7 +178,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.primary,
   },
-  // Filter Tabs
   filterRow: {
     flexDirection: 'row',
     paddingHorizontal: spacing.lg,
@@ -164,12 +201,10 @@ const styles = StyleSheet.create({
   filterTextActive: {
     color: colors.background,
   },
-  // Cards
   cardsContainer: {
     paddingHorizontal: spacing.lg,
     gap: spacing.sm,
   },
-  // Empty State
   emptyState: {
     paddingVertical: spacing.xl,
     alignItems: 'center',
@@ -177,41 +212,5 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: fontSize.sm,
     color: colors.textMuted,
-  },
-  // AI Summary Card
-  summaryCard: {
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.md,
-    backgroundColor: colors.cardGradientStart,
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  summaryBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: spacing.sm,
-  },
-  summaryBadgeDot: {
-    fontSize: 8,
-    color: '#2DD4BF',
-  },
-  summaryBadgeText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: '#2DD4BF',
-    letterSpacing: 0.8,
-  },
-  summaryTitle: {
-    fontSize: fontSize.md,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: spacing.xs,
-  },
-  summarySubtext: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
   },
 });

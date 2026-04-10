@@ -78,7 +78,7 @@ export function AddPayPeriodScreen() {
     unsub(); // just need the snapshot
 
     for (const bill of bills) {
-      if (bill.isActive) {
+      if (bill.isActive && (!bill.clientType || bill.clientType === selectedClient)) {
         mockAddExpense(periodId, {
           description: bill.description,
           amount: bill.amount,
