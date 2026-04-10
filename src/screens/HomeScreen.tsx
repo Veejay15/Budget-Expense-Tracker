@@ -9,10 +9,11 @@ import {RootStackParamList} from '../types';
 import {usePayPeriods} from '../hooks/usePayPeriods';
 import {useSettings} from '../hooks/useSettings';
 import {PayPeriodCard} from '../components/PayPeriodCard';
-import {getAllExpenses} from '../services/mockData';
+import {getAllExpenses, mockOnExpenses} from '../services/mockData';
 import {formatPeso} from '../utils/currency';
 import {format, addMonths, subMonths, isSameMonth} from 'date-fns';
 import {colors, spacing, fontSize, borderRadius} from '../theme';
+import {DueThisWeekWidget} from '../components/DueThisWeek/DueThisWeekWidget';
 
 type NavProp = StackNavigationProp<RootStackParamList>;
 
@@ -27,6 +28,7 @@ export function HomeScreen() {
   const settings = useSettings();
   const [refreshing, setRefreshing] = useState(false);
   const [viewDate, setViewDate] = useState(new Date());
+  const [expenseVersion, setExpenseVersion] = useState(0);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -41,6 +43,16 @@ export function HomeScreen() {
     });
   }, [periods, viewDate]);
 
+  // Subscribe to expense changes for all visible periods
+  useEffect(() => {
+    const unsubscribers = monthPeriods.map(period =>
+      mockOnExpenses(period.id, () => {
+        setExpenseVersion(v => v + 1);
+      }),
+    );
+    return () => unsubscribers.forEach(unsub => unsub());
+  }, [monthPeriods]);
+
   // Calculate totals for the viewed month
   const totalSalary = useMemo(
     () => monthPeriods.reduce((sum, p) => sum + p.salary, 0),
@@ -54,7 +66,7 @@ export function HomeScreen() {
     return allExp
       .filter(({periodId}) => monthPeriodIds.has(periodId))
       .reduce((sum, {expense}) => sum + expense.amount, 0);
-  }, [monthPeriods]);
+  }, [monthPeriods, expenseVersion]);
 
   const monthLabel = `${MONTH_NAMES[viewDate.getMonth()]} ${viewDate.getFullYear()}`;
 
@@ -125,6 +137,9 @@ export function HomeScreen() {
             </View>
           </View>
         </View>
+
+        {/* Due This Week */}
+        <DueThisWeekWidget />
 
         {/* Pay Periods */}
         <View style={styles.sectionHeader}>
