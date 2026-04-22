@@ -29,10 +29,10 @@ export interface AppSettings {
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
-  client1Name: 'Client 1',
-  client2Name: 'Client 2',
-  client1Salary: 28000,
-  client2Salary: 25000,
+  client1Name: 'Joseph Gerocs',
+  client2Name: 'Jason Davis',
+  client1Salary: 20000,
+  client2Salary: 37000,
   client2AnchorDate: '2026-04-10',
 };
 
@@ -188,10 +188,88 @@ async function loadPersistedData(): Promise<boolean> {
   }
 }
 
+// May 2026 snapshot baked in as the app's starting dataset.
+type SeedExpense = {description: string; amount: number; category: string};
+type SeedPeriod = {
+  label: string;
+  type: 'client1' | 'client2';
+  year: number; month: number; day: number; // month is 1-12
+  salary: number;
+  expenses: SeedExpense[];
+};
+
+const MAY_2026_SEED: SeedPeriod[] = [
+  {
+    label: 'May 5 Pay', type: 'client1',
+    year: 2026, month: 5, day: 5, salary: 20000,
+    expenses: [
+      {description: 'Unionbank Credit Card', amount: 10000, category: 'Bills'},
+    ],
+  },
+  {
+    label: 'May 11 Pay', type: 'client2',
+    year: 2026, month: 5, day: 11, salary: 37000,
+    expenses: [
+      {description: 'Pldt', amount: 1500, category: 'Bills'},
+    ],
+  },
+  {
+    label: 'May 18 Pay', type: 'client1',
+    year: 2026, month: 5, day: 18, salary: 20000,
+    expenses: [
+      {description: 'Home Credit', amount: 1600, category: 'Bills'},
+      {description: 'Electricity', amount: 2600, category: 'Bills'},
+      {description: 'Rice', amount: 1500, category: 'Food'},
+    ],
+  },
+  {
+    label: 'May 26 Pay', type: 'client2',
+    year: 2026, month: 5, day: 26, salary: 37000,
+    expenses: [
+      {description: 'Sss Contribution', amount: 2400, category: 'Bills'},
+      {description: 'Sss loan', amount: 2200, category: 'Bills'},
+      {description: 'Philhealth', amount: 630, category: 'Bills'},
+    ],
+  },
+];
+
 function loadDefaults(): void {
-  // Start with empty pay periods - user will create their own
-  payPeriods = [];
-  expenses = {};
+  const seededPeriods: PayPeriod[] = [];
+  const seededExpenses: Record<string, Expense[]> = {};
+
+  for (const seed of MAY_2026_SEED) {
+    const payDate = new Date(seed.year, seed.month - 1, seed.day);
+    const startDate = new Date(payDate);
+    startDate.setDate(startDate.getDate() - 14);
+
+    const periodId = genId();
+    seededPeriods.push({
+      id: periodId,
+      label: seed.label,
+      type: seed.type,
+      startDate: MockTimestamp.fromDate(startDate) as any,
+      endDate: MockTimestamp.fromDate(payDate) as any,
+      payDate: MockTimestamp.fromDate(payDate) as any,
+      salary: seed.salary,
+      createdBy: 'mock_user',
+      createdAt: MockTimestamp.now() as any,
+      updatedAt: MockTimestamp.now() as any,
+    });
+
+    seededExpenses[periodId] = seed.expenses.map(exp => ({
+      id: genId(),
+      description: exp.description,
+      amount: exp.amount,
+      isPaid: false,
+      category: exp.category,
+      createdBy: 'mock_user',
+      createdAt: MockTimestamp.now() as any,
+      updatedAt: MockTimestamp.now() as any,
+    }));
+  }
+
+  payPeriods = seededPeriods;
+  expenses = seededExpenses;
 
   // Start with empty recurring bills - user adds from Bills tab
   recurringBills = [];

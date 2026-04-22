@@ -1,4 +1,4 @@
-import {RecurringBill} from '../types';
+import {RecurringBill, PayPeriod} from '../types';
 import {
   getDaysInMonth,
   isToday,
@@ -13,6 +13,46 @@ import {
 
 export interface BillWithDueDate extends RecurringBill {
   dueDate: Date;
+}
+
+function toPayDate(period: PayPeriod): Date | null {
+  const ts: any = period.payDate;
+  if (ts?._date instanceof Date) return ts._date;
+  if (typeof ts?.toDate === 'function') return ts.toDate();
+  return null;
+}
+
+// Given a bill and a snapshot of all pay periods, return the pay period
+// that "owns" this bill for the calendar month containing `targetMonth`.
+//
+// Rule: among same-client pay periods in that month, pick the one with
+// the largest payDate.day that is <= bill.dueDay (so the paycheck arrives
+// on or before the bill is due). If every payday in that month falls
+// after the due day, fall back to the earliest payday so the bill at least
+// lands somewhere instead of vanishing.
+//
+// Returns null when the month has no matching pay periods.
+export function findPayPeriodForBill(
+  bill: RecurringBill,
+  allPayPeriods: PayPeriod[],
+  targetMonth: Date,
+): PayPeriod | null {
+  const candidates = allPayPeriods.filter(p => {
+    if (bill.clientType && p.type !== bill.clientType) return false;
+    const pd = toPayDate(p);
+    return !!pd && isSameMonth(pd, targetMonth);
+  });
+  if (candidates.length === 0) return null;
+
+  candidates.sort(
+    (a, b) => toPayDate(a)!.getTime() - toPayDate(b)!.getTime(),
+  );
+
+  let best: PayPeriod | null = null;
+  for (const p of candidates) {
+    if (toPayDate(p)!.getDate() <= bill.dueDay) best = p;
+  }
+  return best ?? candidates[0];
 }
 
 export type FilterPeriod = 'today' | 'week' | 'month';

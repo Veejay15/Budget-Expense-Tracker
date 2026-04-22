@@ -8,13 +8,14 @@ import {usePayPeriods} from '../hooks/usePayPeriods';
 import {useSettings} from '../hooks/useSettings';
 import {
   mockAddRecurringBill, mockUpdateRecurringBill, mockDeleteRecurringBill,
-  mockAddExpense,
+  mockAddExpense, getAllExpenses, MockTimestamp,
 } from '../services/mockData';
 import {RecurringBill, PayPeriod} from '../types';
 import {scheduleBillReminder} from '../services/localNotifications';
 import notifee from '@notifee/react-native';
 import {formatPeso, parsePesoInput} from '../utils/currency';
 import {SwipeableRow} from '../components/SwipeableRow';
+import {findPayPeriodForBill} from '../utils/billDates';
 import {colors, spacing, fontSize, borderRadius} from '../theme';
 import {isSameMonth} from 'date-fns';
 
@@ -65,15 +66,39 @@ export function RecurringBillsScreen() {
     if (editingBill) { mockUpdateRecurringBill(editingBill.id, data); billId = editingBill.id; }
     else { billId = mockAddRecurringBill(data); }
 
-    // If a specific payday was selected, auto-add as expense to that period
-    if (!editingBill && selectedPeriodId) {
-      mockAddExpense(selectedPeriodId, {
-        description: data.description,
-        amount: data.amount,
-        isPaid: false,
-        category: 'Bills',
-        createdBy: 'mock_user',
-      });
+    // Auto-attach the new bill to an existing payday so the current month
+    // reflects it immediately. Respect the user's explicit pick if any;
+    // otherwise pick the matching payday for the current calendar month.
+    if (!editingBill) {
+      let targetPeriodId: string | undefined = selectedPeriodId;
+      if (!targetPeriodId) {
+        const newBill: RecurringBill = {
+          ...data,
+          id: billId,
+          createdAt: MockTimestamp.now() as any,
+        };
+        const match = findPayPeriodForBill(newBill, periods, new Date());
+        targetPeriodId = match?.id;
+      }
+
+      if (targetPeriodId) {
+        const already = getAllExpenses().some(
+          ({periodId, expense}) =>
+            periodId === targetPeriodId &&
+            expense.description === data.description &&
+            expense.amount === data.amount &&
+            expense.category === 'Bills',
+        );
+        if (!already) {
+          mockAddExpense(targetPeriodId, {
+            description: data.description,
+            amount: data.amount,
+            isPaid: false,
+            category: 'Bills',
+            createdBy: 'mock_user',
+          });
+        }
+      }
     }
 
     // Schedule push notification for this bill

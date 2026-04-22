@@ -5,10 +5,20 @@ import {
 } from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {useSettings} from '../hooks/useSettings';
-import {mockCreatePayPeriod, mockAddExpense, MockTimestamp, getSettings, mockOnRecurringBills} from '../services/mockData';
+import {
+  mockCreatePayPeriod,
+  mockAddExpense,
+  MockTimestamp,
+  getSettings,
+  mockOnRecurringBills,
+  getAllPayPeriods,
+  getAllExpenses,
+} from '../services/mockData';
 import {scheduleBillReminder} from '../services/localNotifications';
 import {RecurringBill} from '../types';
 import {parsePesoInput} from '../utils/currency';
+import {findPayPeriodForBill} from '../utils/billDates';
+import {isSameMonth} from 'date-fns';
 import {colors, spacing, fontSize, borderRadius} from '../theme';
 
 export function AddPayPeriodScreen() {
@@ -72,26 +82,54 @@ export function AddPayPeriodScreen() {
       createdBy: 'mock_user',
     });
 
-    // Auto-populate recurring bills as expenses
+    // Auto-populate recurring bills — but only the ones whose dueDay maps
+    // to THIS new period (so we don't duplicate the same bill onto every
+    // client payday in a month).
     const bills: RecurringBill[] = [];
     const unsub = mockOnRecurringBills(items => { bills.push(...items); });
     unsub(); // just need the snapshot
 
-    for (const bill of bills) {
-      if (bill.isActive && (!bill.clientType || bill.clientType === selectedClient)) {
-        mockAddExpense(periodId, {
-          description: bill.description,
-          amount: bill.amount,
-          isPaid: false,
-          category: 'Bills',
-          createdBy: 'mock_user',
-        });
+    const allPeriods = getAllPayPeriods(); // includes the period just created
+    const allExpenses = getAllExpenses();
+    const sameMonthClientPeriodIds = new Set(
+      allPeriods
+        .filter(p => {
+          if (p.type !== selectedClient) return false;
+          const pd = (p.payDate as any)._date || (p.payDate as any).toDate?.();
+          return pd && isSameMonth(pd, payDate);
+        })
+        .map(p => p.id),
+    );
 
-        // Schedule notification for this bill
-        scheduleBillReminder(
-          bill.id, bill.description, bill.amount, bill.dueDay, bill.reminderDaysBefore,
-        ).catch(() => {});
-      }
+    for (const bill of bills) {
+      if (!bill.isActive) continue;
+      if (bill.clientType && bill.clientType !== selectedClient) continue;
+
+      const match = findPayPeriodForBill(bill, allPeriods, payDate);
+      if (!match || match.id !== periodId) continue;
+
+      // Dedup: skip if this bill is already an expense in any same-client
+      // period of this month (e.g., user added it there manually earlier).
+      const already = allExpenses.some(
+        ({periodId: pid, expense: e}) =>
+          sameMonthClientPeriodIds.has(pid) &&
+          e.description === bill.description &&
+          e.amount === bill.amount &&
+          e.category === 'Bills',
+      );
+      if (already) continue;
+
+      mockAddExpense(periodId, {
+        description: bill.description,
+        amount: bill.amount,
+        isPaid: false,
+        category: 'Bills',
+        createdBy: 'mock_user',
+      });
+
+      scheduleBillReminder(
+        bill.id, bill.description, bill.amount, bill.dueDay, bill.reminderDaysBefore,
+      ).catch(() => {});
     }
 
     navigation.goBack();
